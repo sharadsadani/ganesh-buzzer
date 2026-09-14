@@ -27,6 +27,11 @@
     "Mai Tera khoon pijaunga"
   ];
   const REVEAL_EVERY_MS = 3000;   // one random square fades away this often
+
+  // Optional: put your own audio files next to index.html and name them here.
+  // Leave them as "" to use the built-in synthesised suspense loop / fanfare.
+  const TIMER_MUSIC_URL = "";     // e.g. "timer.mp3"  — loops while the green bar runs
+  const BUZZ_SOUND_URL  = "";     // e.g. "fanfare.mp3" — plays when a team buzzes in
 </script>
 <!-- =========================================================================== -->
 
@@ -461,6 +466,7 @@ function hostLogin(){
   if($('hostpw').value.trim() !== 'Sharad'){ $('pwerr').textContent = 'Wrong password'; return; }
   $('pwerr').textContent = ''; $('hostpw').value='';
   isHost = true;
+  ac();                      // first real click — lets the browser play sound later
   createGame();
 }
 
@@ -525,19 +531,104 @@ function startGame(){
   gref.update({ status:'live', round:{n:1,locked:true,unlockAt:null,winner:null} });
 }
 
-let AC=null, lastWin=null;
-function ding(){
+/* ===================== sound ===================== */
+let AC = null, lastWin = null;
+function ac(){
   try{
     AC = AC || new (window.AudioContext||window.webkitAudioContext)();
-    if(AC.state==='suspended') AC.resume();
-    [[880,0],[1320,.09]].forEach(([f,t])=>{
-      const o=AC.createOscillator(), g=AC.createGain();
-      o.type='triangle'; o.frequency.value=f;
-      g.gain.setValueAtTime(.0001,AC.currentTime+t);
-      g.gain.exponentialRampToValueAtTime(.35,AC.currentTime+t+.01);
-      g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+t+.35);
-      o.connect(g); g.connect(AC.destination); o.start(AC.currentTime+t); o.stop(AC.currentTime+t+.4);
+    if(AC.state === 'suspended') AC.resume();
+  }catch(e){ AC = null; }
+  return AC;
+}
+let musicEl = null, buzzEl = null;
+try{
+  if(TIMER_MUSIC_URL){ musicEl = new Audio(TIMER_MUSIC_URL); musicEl.loop = true; musicEl.volume = .65; }
+  if(BUZZ_SOUND_URL){ buzzEl = new Audio(BUZZ_SOUND_URL); buzzEl.volume = 1; }
+}catch(e){}
+
+/* suspense loop: low pulsing drone + a tick that doubles in speed near the end */
+const music = {
+  on:false, drone:null, nextBeat:0,
+  start(){
+    if(this.on) return; this.on = true;
+    if(musicEl){ try{ musicEl.currentTime = 0; musicEl.play().catch(()=>{}); }catch(e){} return; }
+    const a = ac(); if(!a) return;
+    try{
+      const t = a.currentTime;
+      const g = a.createGain(); g.gain.value = 0; g.connect(a.destination);
+      const f = a.createBiquadFilter(); f.type='lowpass'; f.frequency.value=430; f.Q.value=6; f.connect(g);
+      const o1 = a.createOscillator(); o1.type='sawtooth'; o1.frequency.value=55;
+      const o2 = a.createOscillator(); o2.type='sawtooth'; o2.frequency.value=55.7;
+      o1.connect(f); o2.connect(f); o1.start(); o2.start();
+      const lfo = a.createOscillator(); lfo.type='sine'; lfo.frequency.value=.3;
+      const lg  = a.createGain(); lg.gain.value=.03; lfo.connect(lg); lg.connect(g.gain); lfo.start();
+      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.07,t+1.0);
+      this.drone = {g,o1,o2,lfo};
+      this.nextBeat = t + .05;
+    }catch(e){}
+  },
+  stop(){
+    if(!this.on) return; this.on = false;
+    if(musicEl){ try{ musicEl.pause(); }catch(e){} return; }
+    const d = this.drone, a = AC; this.drone = null;
+    if(!d || !a) return;
+    try{
+      const t = a.currentTime;
+      d.g.gain.cancelScheduledValues(t);
+      d.g.gain.setValueAtTime(.07, t);
+      d.g.gain.exponentialRampToValueAtTime(.0001, t+.3);
+      [d.o1,d.o2,d.lfo].forEach(o=>{ try{ o.stop(t+.35); }catch(e){} });
+    }catch(e){}
+  },
+  schedule(urgent){
+    if(!this.on || musicEl || !AC) return;
+    const a = AC, step = urgent ? .27 : .55;
+    if(this.nextBeat < a.currentTime - 1) this.nextBeat = a.currentTime + .02;
+    while(this.nextBeat < a.currentTime + .35){ this.beat(this.nextBeat, urgent); this.nextBeat += step; }
+  },
+  beat(t, urgent){
+    const a = AC; if(!a) return;
+    try{
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(urgent?330:247, t);
+      o.frequency.exponentialRampToValueAtTime(urgent?175:150, t+.16);
+      g.gain.setValueAtTime(.0001, t);
+      g.gain.exponentialRampToValueAtTime(urgent?.30:.19, t+.008);
+      g.gain.exponentialRampToValueAtTime(.0001, t+.23);
+      o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+.26);
+    }catch(e){}
+  }
+};
+
+/* loud trumpet fanfare the moment a team buzzes in */
+function fanfare(){
+  music.stop();
+  if(buzzEl){ try{ buzzEl.currentTime = 0; buzzEl.play().catch(()=>{}); }catch(e){} return; }
+  const a = ac(); if(!a) return;
+  try{
+    const t0 = a.currentTime + .01;
+    [[523.25,0,.17],[659.25,.13,.17],[783.99,.26,.20],[1046.50,.42,.95]].forEach(function(n){
+      const f=n[0], off=n[1], dur=n[2];
+      [-7,0,7].forEach(function(det){
+        const o=a.createOscillator(), g=a.createGain(), fl=a.createBiquadFilter();
+        o.type='sawtooth'; o.frequency.value=f; o.detune.value=det;
+        fl.type='lowpass'; fl.frequency.setValueAtTime(1200,t0+off);
+        fl.frequency.exponentialRampToValueAtTime(4200,t0+off+.05);
+        g.gain.setValueAtTime(.0001,t0+off);
+        g.gain.exponentialRampToValueAtTime(.20,t0+off+.02);
+        g.gain.exponentialRampToValueAtTime(.0001,t0+off+dur);
+        o.connect(fl); fl.connect(g); g.connect(a.destination);
+        o.start(t0+off); o.stop(t0+off+dur+.05);
+      });
     });
+    const len = Math.floor(a.sampleRate*0.9);
+    const buf = a.createBuffer(1,len,a.sampleRate), ch = buf.getChannelData(0);
+    for(let i=0;i<len;i++) ch[i] = (Math.random()*2-1) * Math.pow(1-i/len, 2.2);
+    const src=a.createBufferSource(); src.buffer=buf;
+    const hp=a.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=2600;
+    const ng=a.createGain(); ng.gain.value=.30;
+    src.connect(hp); hp.connect(ng); ng.connect(a.destination); src.start(t0+.40);
   }catch(e){}
 }
 /* ================= quiz: wall, puzzle, reveal ================= */
@@ -553,6 +644,10 @@ function clockTick(){
   const t = Date.now();
   if(clockRunning() && lastTs) elapsedMs = Math.min(totalMs, elapsedMs + (t - lastTs));
   lastTs = t;
+  const run = clockRunning();
+  if(run && !music.on) music.start();
+  if(!run && music.on) music.stop();
+  if(run) music.schedule(totalMs ? (1 - elapsedMs/totalMs) <= .25 : false);
   drawBar();
 }
 function drawBar(){
@@ -561,7 +656,7 @@ function drawBar(){
   bar.style.width = (left*100).toFixed(2) + '%';
   bar.classList.toggle('low', left > 0 && left <= 0.15);
 }
-function stopClock(){ clearInterval(clockTimer); clockTimer = null; }
+function stopClock(){ clearInterval(clockTimer); clockTimer = null; music.stop(); }
 
 function renderWall(){
   const w = $('qwall');
@@ -631,7 +726,7 @@ function revealTick(){
   hidden[Math.floor(Math.random()*hidden.length)].classList.add('open');
 }
 function showAnswer(){
-  answerShown = true;
+  answerShown = true; music.stop();
   tiles.forEach(t=>t.classList.add('open'));
 }
 function backToQuestions(){
@@ -648,7 +743,7 @@ function renderHostRound(){
   const w = round.winner;
   $('btnUnlock').disabled = !round.locked;
   const wid = w ? (w.team + '#' + (round.n||1) + '#' + (round.unlockAt||0)) : null;
-  if(wid && wid !== lastWin){ lastWin = wid; ding(); }
+  if(wid && wid !== lastWin){ lastWin = wid; fanfare(); }
   if(!w) lastWin = null;
   if(w){
     $('winbanner').classList.remove('hide');
@@ -677,6 +772,7 @@ function renderHostGrid(){
 }
 
 function unlockRound(){
+  ac();
   gref.child('round').set({
     n: round.n||1, locked:false,
     unlockAt: firebase.database.ServerValue.TIMESTAMP,
@@ -684,6 +780,7 @@ function unlockRound(){
   });
 }
 function refreshBuzzers(){
+  ac();
   // clears any buzz and re-arms every buzzer at once, same question
   gref.child('round').set({
     n: round.n||1, locked:false,
