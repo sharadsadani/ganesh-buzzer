@@ -251,6 +251,12 @@ input::placeholder{color:#ffd98a80;font-weight:600}
   color:rgba(255,201,60,.55);font-size:calc(var(--ts,50px)*.5);font-weight:900}
 .tile.open .cap{opacity:0;transform:scale(.55) rotate(-10deg)}
 
+.soundchip{font-family:inherit;font-size:clamp(9px,.95vw,14px);font-weight:900;cursor:pointer;
+  color:#3d0a1f;background:linear-gradient(180deg,#7dffb0,#0ca84f);border:2px solid #d7ffe9;
+  padding:.3em .7em;border-radius:999px;white-space:nowrap}
+.soundchip.off{background:linear-gradient(180deg,#ff8a8a,#c40000);color:#fff;border-color:#ffd0d0;
+  animation:tblink .9s steps(2,start) infinite}
+
 /* countdown bar: total = letters x 3s, no digits shown */
 .timerwrap{flex:0 0 auto;width:100%;height:clamp(14px,3.4vh,34px);border-radius:99px;
   background:rgba(0,0,0,.45);border:2px solid rgba(255,201,60,.45);overflow:hidden;
@@ -364,6 +370,7 @@ input::placeholder{color:#ffd98a80;font-weight:600}
       <div class="pane-buzz">
         <div class="chiprow">
           <span class="roundchip" id="roundchip">ROUND 1</span>
+          <button class="soundchip" id="soundchip" onclick="testSound()" title="Tap to test the sound">&#128266; TEST</button>
           <span class="roundchip" id="pinchip">PIN 0000</span>
         </div>
         <div class="statusline" id="hstatus">Pick a question, then press UNLOCK</div>
@@ -532,14 +539,27 @@ function startGame(){
 }
 
 /* ===================== sound ===================== */
-let AC = null, lastWin = null;
+let AC = null, MASTER = null, lastWin = null;
 function ac(){
   try{
     AC = AC || new (window.AudioContext||window.webkitAudioContext)();
     if(AC.state === 'suspended') AC.resume();
+    if(AC && (!MASTER || MASTER.context !== AC)){
+      MASTER = AC.createGain(); MASTER.gain.value = 1.0;
+      const comp = AC.createDynamicsCompressor();
+      comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 6;
+      comp.attack.value = .003; comp.release.value = .2;
+      MASTER.connect(comp); comp.connect(AC.destination);
+    }
   }catch(e){ AC = null; }
   return AC;
 }
+function out(){ ac(); return MASTER; }
+// browsers keep audio asleep until a real interaction — wake it on any click/tap/key
+['pointerdown','touchstart','keydown'].forEach(function(ev){
+  document.addEventListener(ev, function(){ try{ if(AC && AC.state==='suspended') AC.resume(); else ac(); }catch(e){} }, true);
+});
+function soundOK(){ return !!(AC && AC.state === 'running'); }
 let musicEl = null, buzzEl = null;
 try{
   if(TIMER_MUSIC_URL){ musicEl = new Audio(TIMER_MUSIC_URL); musicEl.loop = true; musicEl.volume = .65; }
@@ -555,14 +575,14 @@ const music = {
     const a = ac(); if(!a) return;
     try{
       const t = a.currentTime;
-      const g = a.createGain(); g.gain.value = 0; g.connect(a.destination);
+      const g = a.createGain(); g.gain.value = 0; g.connect(out());
       const f = a.createBiquadFilter(); f.type='lowpass'; f.frequency.value=430; f.Q.value=6; f.connect(g);
       const o1 = a.createOscillator(); o1.type='sawtooth'; o1.frequency.value=55;
       const o2 = a.createOscillator(); o2.type='sawtooth'; o2.frequency.value=55.7;
       o1.connect(f); o2.connect(f); o1.start(); o2.start();
       const lfo = a.createOscillator(); lfo.type='sine'; lfo.frequency.value=.3;
       const lg  = a.createGain(); lg.gain.value=.03; lfo.connect(lg); lg.connect(g.gain); lfo.start();
-      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.07,t+1.0);
+      g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.14,t+1.0);
       this.drone = {g,o1,o2,lfo};
       this.nextBeat = t + .05;
     }catch(e){}
@@ -575,7 +595,7 @@ const music = {
     try{
       const t = a.currentTime;
       d.g.gain.cancelScheduledValues(t);
-      d.g.gain.setValueAtTime(.07, t);
+      d.g.gain.setValueAtTime(.14, t);
       d.g.gain.exponentialRampToValueAtTime(.0001, t+.3);
       [d.o1,d.o2,d.lfo].forEach(o=>{ try{ o.stop(t+.35); }catch(e){} });
     }catch(e){}
@@ -594,12 +614,22 @@ const music = {
       o.frequency.setValueAtTime(urgent?330:247, t);
       o.frequency.exponentialRampToValueAtTime(urgent?175:150, t+.16);
       g.gain.setValueAtTime(.0001, t);
-      g.gain.exponentialRampToValueAtTime(urgent?.30:.19, t+.008);
+      g.gain.exponentialRampToValueAtTime(urgent?.85:.55, t+.008);
       g.gain.exponentialRampToValueAtTime(.0001, t+.23);
-      o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+.26);
+      o.connect(g); g.connect(out()); o.start(t); o.stop(t+.26);
     }catch(e){}
   }
 };
+
+function testSound(){
+  ac();
+  fanfare();
+  setTimeout(function(){
+    const c = $('soundchip'); if(!c) return;
+    c.classList.toggle('off', !soundOK());
+    c.innerHTML = soundOK() ? '&#128266; SOUND ON' : '&#128263; BLOCKED';
+  }, 250);
+}
 
 /* loud trumpet fanfare the moment a team buzzes in */
 function fanfare(){
@@ -616,9 +646,9 @@ function fanfare(){
         fl.type='lowpass'; fl.frequency.setValueAtTime(1200,t0+off);
         fl.frequency.exponentialRampToValueAtTime(4200,t0+off+.05);
         g.gain.setValueAtTime(.0001,t0+off);
-        g.gain.exponentialRampToValueAtTime(.20,t0+off+.02);
+        g.gain.exponentialRampToValueAtTime(.42,t0+off+.02);
         g.gain.exponentialRampToValueAtTime(.0001,t0+off+dur);
-        o.connect(fl); fl.connect(g); g.connect(a.destination);
+        o.connect(fl); fl.connect(g); g.connect(out());
         o.start(t0+off); o.stop(t0+off+dur+.05);
       });
     });
@@ -627,8 +657,8 @@ function fanfare(){
     for(let i=0;i<len;i++) ch[i] = (Math.random()*2-1) * Math.pow(1-i/len, 2.2);
     const src=a.createBufferSource(); src.buffer=buf;
     const hp=a.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=2600;
-    const ng=a.createGain(); ng.gain.value=.30;
-    src.connect(hp); hp.connect(ng); ng.connect(a.destination); src.start(t0+.40);
+    const ng=a.createGain(); ng.gain.value=.55;
+    src.connect(hp); hp.connect(ng); ng.connect(out()); src.start(t0+.40);
   }catch(e){}
 }
 /* ================= quiz: wall, puzzle, reveal ================= */
@@ -739,6 +769,8 @@ function backToQuestions(){
 }
 
 function renderHostRound(){
+  const sc = $('soundchip');
+  if(sc && sc.innerHTML.indexOf('TEST') >= 0) sc.classList.toggle('off', !soundOK());
   $('roundchip').textContent = (qIndex>=0 ? 'Q' + (round.n||1) : 'ROUND ' + (round.n||1));
   const w = round.winner;
   $('btnUnlock').disabled = !round.locked;
@@ -882,6 +914,13 @@ function hitBuzzer(){
   if(round.locked || round.winner) return;
   if(buzzedArm !== null && buzzedArm === armId(round)) return;
   buzzedArm = armId(round);
+  try{ const a=ac(); if(a){ const o=a.createOscillator(), g=a.createGain();
+    o.type='square'; o.frequency.setValueAtTime(880,a.currentTime);
+    o.frequency.exponentialRampToValueAtTime(180,a.currentTime+.35);
+    g.gain.setValueAtTime(.0001,a.currentTime);
+    g.gain.exponentialRampToValueAtTime(.6,a.currentTime+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+.4);
+    o.connect(g); g.connect(out()); o.start(); o.stop(a.currentTime+.45); } }catch(e){}
   const ms = Math.max(0, now() - (round.unlockAt || now()));
   renderPlayer();
   const rn = round.n;
