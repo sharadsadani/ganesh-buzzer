@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Buzzer — Shree Balaji Rajasthani Mandal</title>
+
+<!-- ======= PASTE YOUR FIREBASE REALTIME DATABASE URL BETWEEN THE QUOTES ======= -->
+<script>
+  const DATABASE_URL = "https://aapna-kahoot-default-rtdb.firebaseio.com";
+</script>
+<!-- =========================================================================== -->
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+:root{
+  --gold:#ffc93c; --gold2:#ff9a00; --saffron:#ff6b00;
+  --maroon:#3d0a1f; --maroon2:#6a0f2b;
+  --ink:#fff7e6;
+  --green:#16c46a;
+  --red:#ff1e1e;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;width:100%;overflow:hidden;position:fixed;inset:0}
+body{
+  font-family:"Trebuchet MS","Segoe UI",system-ui,-apple-system,sans-serif;
+  color:var(--ink);
+  background:
+    radial-gradient(1200px 700px at 50% -10%, rgba(255,201,60,.28), transparent 60%),
+    radial-gradient(900px 600px at 100% 110%, rgba(255,107,0,.22), transparent 60%),
+    linear-gradient(160deg,#2a0616 0%,var(--maroon) 35%,var(--maroon2) 100%);
+  display:flex;flex-direction:column;
+  user-select:none;
+}
+#hdr{
+  flex:0 0 auto;text-align:center;padding:1.2vh 2vw .9vh;
+  border-bottom:2px solid rgba(255,201,60,.45);
+  background:linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,0));
+}
+#hdr .t1{
+  font-size:clamp(13px,2.9vw,34px);font-weight:900;letter-spacing:.5px;white-space:nowrap;
+  background:linear-gradient(180deg,#fff3c4,var(--gold),var(--gold2));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 2px 0 rgba(0,0,0,.25);
+}
+#hdr .t2{font-size:clamp(10px,1.5vw,17px);color:#ffd98a;font-weight:700;letter-spacing:3px;margin-top:.2vh}
+main{flex:1 1 auto;min-height:0;position:relative}
+.screen{
+  position:absolute;inset:0;display:none;flex-direction:column;
+  padding:2vh 2.5vw;gap:1.4vh;align-items:center;justify-content:center;
+}
+.screen.on{display:flex}
+
+h2.title{font-size:clamp(16px,3.2vw,40px);font-weight:900;color:var(--gold);text-align:center}
+p.sub{font-size:clamp(11px,1.6vw,20px);color:#ffdca8;text-align:center}
+
+.btn{
+  border:none;border-radius:16px;cursor:pointer;font-weight:900;
+  font-family:inherit;letter-spacing:.5px;
+  padding:1.6vh 3vw;font-size:clamp(13px,2vw,26px);
+  background:linear-gradient(180deg,var(--gold),var(--gold2));
+  color:#3d0a1f;box-shadow:0 6px 0 #a85c00, 0 10px 22px rgba(0,0,0,.45);
+  transition:transform .08s, box-shadow .08s, filter .15s;
+}
+.btn:active{transform:translateY(4px);box-shadow:0 2px 0 #a85c00,0 6px 14px rgba(0,0,0,.45)}
+.btn.big{padding:3.2vh 5vw;font-size:clamp(16px,2.8vw,34px);min-width:min(80vw,520px)}
+.btn.ghost{background:transparent;color:var(--gold);border:2px solid var(--gold);box-shadow:none}
+.btn.ghost:active{transform:translateY(2px)}
+.btn.danger{background:linear-gradient(180deg,#ff5c5c,#c40000);color:#fff;box-shadow:0 6px 0 #7a0000,0 10px 22px rgba(0,0,0,.45)}
+.btn.grn{background:linear-gradient(180deg,#3df58f,#0f9a52);color:#052414;box-shadow:0 6px 0 #0a6634,0 10px 22px rgba(0,0,0,.45)}
+.btn:disabled{filter:grayscale(.85) brightness(.7);cursor:not-allowed;box-shadow:none}
+.btn.sm{padding:1.1vh 2vw;font-size:clamp(11px,1.4vw,18px);border-radius:12px}
+
+input{
+  font-family:inherit;font-weight:800;text-align:center;border-radius:14px;border:3px solid var(--gold);
+  background:rgba(0,0,0,.35);color:#fff;outline:none;
+  padding:1.5vh 2vw;font-size:clamp(14px,2.2vw,28px);width:min(88vw,460px);
+}
+input::placeholder{color:#ffd98a80;font-weight:600}
+.err{color:#ff8a8a;font-weight:800;font-size:clamp(11px,1.5vw,18px);min-height:1.2em;text-align:center}
+
+/* ---------- PIN ---------- */
+.pinwrap{flex:1 1 auto;min-height:0;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5vh}
+.pinlabel{font-size:clamp(11px,1.6vw,20px);letter-spacing:6px;color:#ffdca8;font-weight:800}
+.pin{
+  display:flex;gap:1.5vw;justify-content:center;align-items:center;width:100%;
+}
+.pin span{
+  font-size:min(22vh,17vw);line-height:.95;font-weight:900;
+  background:linear-gradient(180deg,#fff7d1,var(--gold),var(--gold2));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 6px 18px rgba(0,0,0,.5);
+}
+
+/* ---------- team grid ---------- */
+.gridwrap{flex:1 1 auto;min-height:0;width:100%;display:flex;flex-direction:column;gap:.6vh}
+.gridhead{display:flex;justify-content:space-between;align-items:center;font-size:clamp(10px,1.4vw,18px);font-weight:800;color:#ffdca8}
+.grid{
+  flex:1 1 auto;min-height:0;width:100%;display:grid;gap:.8vh .8vw;
+  grid-template-columns:repeat(var(--cols,3),1fr);
+  grid-template-rows:repeat(var(--rows,1),1fr);
+}
+.tbox{
+  position:relative;border-radius:14px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:.2em;overflow:hidden;
+  background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.06));
+  border:2px solid rgba(255,201,60,.5);
+  padding:.4em;text-align:center;
+  transition:all .25s ease;
+}
+.tbox .num{font-size:calc(var(--bs,60px)*.30);font-weight:900;color:var(--gold);line-height:1}
+.tbox .nm{font-size:calc(var(--bs,60px)*.15);font-weight:800;line-height:1.08;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+  overflow-wrap:break-word;hyphens:auto;padding:0 .15em}
+.tbox .tm{font-size:calc(var(--bs,60px)*.15);font-weight:900;color:#053;line-height:1}
+.tbox.dim{opacity:.34;filter:grayscale(1)}
+.tbox.live{
+  background:linear-gradient(180deg,#2b6fff,#0b39a8);border-color:#9ec4ff;
+  box-shadow:0 0 18px rgba(60,130,255,.5)
+}
+.tbox.live .num{color:#fff}
+.tbox.win{background:linear-gradient(180deg,#4dff9a,#08a552);border-color:#d7ffe9;color:#053; box-shadow:0 0 30px rgba(22,196,106,.75); animation:pop .35s ease}
+.tbox.win .num{color:#04321c}
+@keyframes pop{0%{transform:scale(.9)}60%{transform:scale(1.06)}100%{transform:scale(1)}}
+.kick{
+  position:absolute;top:2px;right:4px;width:1.5em;height:1.5em;border-radius:50%;
+  background:#c40000;color:#fff;border:none;cursor:pointer;font-weight:900;
+  font-size:calc(var(--bs,60px)*.13);line-height:1;display:flex;align-items:center;justify-content:center;
+}
+
+/* ---------- host bar ---------- */
+.bar{flex:0 0 auto;display:flex;gap:1vw;flex-wrap:wrap;justify-content:center;align-items:center;width:100%}
+.statusline{
+  flex:0 0 auto;text-align:center;font-weight:900;
+  font-size:clamp(12px,2.2vw,28px);color:var(--gold);min-height:1.3em;
+}
+.roundchip{
+  font-size:clamp(10px,1.4vw,18px);font-weight:900;color:#3d0a1f;background:var(--gold);
+  padding:.3em .9em;border-radius:999px
+}
+
+/* ---------- player buzzer ---------- */
+.mybox{
+  flex:0 0 auto;border-radius:14px;padding:.8vh 3vw;text-align:center;
+  border:2px solid rgba(255,201,60,.5);background:rgba(255,255,255,.1);
+  font-weight:900;font-size:clamp(12px,2vw,24px);transition:all .25s;
+}
+.mybox.dim{opacity:.4;filter:grayscale(1)}
+.mybox.live{background:linear-gradient(180deg,#2b6fff,#0b39a8);border-color:#9ec4ff}
+.buzzwrap{flex:1 1 auto;min-height:0;width:100%;display:flex;align-items:center;justify-content:center}
+#buzzer{
+  width:min(62vh,78vw);height:min(62vh,78vw);border-radius:50%;border:none;cursor:pointer;
+  font-family:inherit;font-weight:900;letter-spacing:2px;color:#fff;
+  font-size:min(9vh,11vw);
+  background:radial-gradient(circle at 35% 30%,#ff7b7b,var(--red) 45%,#8f0000 100%);
+  box-shadow:0 12px 0 #6b0000, 0 22px 40px rgba(0,0,0,.6), inset 0 -10px 30px rgba(0,0,0,.35);
+  text-shadow:0 3px 8px rgba(0,0,0,.6);
+  transition:filter .2s, opacity .2s, transform .08s;
+}
+#buzzer.armed{animation:glow 1.1s ease-in-out infinite}
+@keyframes glow{0%,100%{box-shadow:0 12px 0 #6b0000,0 22px 40px rgba(0,0,0,.6),0 0 0 0 rgba(255,30,30,.55)}50%{box-shadow:0 12px 0 #6b0000,0 22px 40px rgba(0,0,0,.6),0 0 0 28px rgba(255,30,30,0)}}
+#buzzer:active{transform:translateY(8px)}
+#buzzer.locked{filter:grayscale(.9) brightness(.45);cursor:not-allowed;animation:none}
+#buzzer.spent{filter:grayscale(1) brightness(.5);cursor:not-allowed;animation:none;transform:translateY(8px);box-shadow:0 4px 0 #3a3a3a,0 8px 20px rgba(0,0,0,.5)}
+.rolewrap{display:flex;flex-direction:column;gap:2.5vh;align-items:center}
+.winbanner{
+  flex:0 0 auto;text-align:center;font-weight:900;color:#053;
+  background:linear-gradient(180deg,#4dff9a,#08a552);border-radius:14px;
+  padding:.6vh 3vw;font-size:clamp(13px,2.4vw,30px);box-shadow:0 0 24px rgba(22,196,106,.6);
+}
+.hide{display:none !important}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div class="t1">Shree Balaji Rajasthani Mandal</div>
+  <div class="t2">GANESH UTSAV &nbsp;•&nbsp; 2026 &nbsp;•&nbsp; BUZZER</div>
+</div>
+
+<main>
+
+  <!-- ROLE -->
+  <section id="scr-role" class="screen on">
+    <h2 class="title">Welcome — choose how you are joining</h2>
+    <div class="rolewrap">
+      <button class="btn big" id="btnRoleHost" onclick="go('scr-hostpass')">JOIN AS A HOST</button>
+      <button class="btn big grn" id="btnRolePlayer" onclick="go('scr-join')">JOIN AS A PLAYER / TEAM</button>
+    </div>
+  </section>
+
+  <!-- HOST PASSWORD -->
+  <section id="scr-hostpass" class="screen">
+    <h2 class="title">Host Login</h2>
+    <p class="sub">Enter the host password</p>
+    <input id="hostpw" type="password" placeholder="Password" autocomplete="off">
+    <div class="err" id="pwerr"></div>
+    <div class="bar">
+      <button class="btn" id="btnHostEnter" onclick="hostLogin()">ENTER</button>
+      <button class="btn ghost" onclick="go('scr-role')">BACK</button>
+    </div>
+  </section>
+
+  <!-- HOST LOBBY -->
+  <section id="scr-lobby" class="screen" style="justify-content:flex-start">
+    <div class="pinwrap">
+      <div class="pinlabel">GAME PIN</div>
+      <div class="pin" id="pinbox"></div>
+      <div class="pinlabel" style="letter-spacing:1px">Teams — enter this PIN to join</div>
+    </div>
+    <div class="gridwrap" style="flex:1.5">
+      <div class="gridhead">
+        <span id="lobbycount">0 teams joined</span>
+        <span>Tap ✕ on a box to remove a team</span>
+      </div>
+      <div class="grid" id="lobbygrid"></div>
+    </div>
+    <div class="bar">
+      <button class="btn grn" id="btnStart" onclick="startGame()" disabled>START THE GAME</button>
+      <button class="btn danger sm" id="btnEndLobby" onclick="endGame()">END GAME</button>
+    </div>
+  </section>
+
+  <!-- HOST GAME -->
+  <section id="scr-hostgame" class="screen" style="justify-content:flex-start">
+    <div class="bar" style="justify-content:space-between">
+      <span class="roundchip" id="roundchip">ROUND 1</span>
+      <span class="statusline" id="hstatus">Locked — press UNLOCK to arm the buzzers</span>
+      <span class="roundchip" id="pinchip">PIN 0000</span>
+    </div>
+    <div class="winbanner hide" id="winbanner"></div>
+    <div class="gridwrap">
+      <div class="grid" id="hostgrid"></div>
+    </div>
+    <div class="bar">
+      <button class="btn grn" id="btnUnlock" onclick="unlockRound()">UNLOCK</button>
+      <button class="btn" id="btnNext" onclick="nextQuestion()">NEXT QUESTION</button>
+      <button class="btn ghost" id="btnCancel" onclick="cancelRound()">CANCEL ROUND</button>
+      <button class="btn danger" id="btnEnd" onclick="endGame()">END GAME</button>
+    </div>
+  </section>
+
+  <!-- PLAYER JOIN -->
+  <section id="scr-join" class="screen">
+    <h2 class="title">Join the Buzzer</h2>
+    <input id="jpin" type="tel" inputmode="numeric" maxlength="4" placeholder="4-DIGIT PIN">
+    <input id="jnum" type="tel" inputmode="numeric" maxlength="3" placeholder="TEAM NUMBER">
+    <input id="jname" type="text" maxlength="22" placeholder="TEAM NAME">
+    <div class="err" id="joinerr"></div>
+    <div class="bar">
+      <button class="btn grn" id="btnJoin" onclick="joinGame()">JOIN</button>
+      <button class="btn ghost" onclick="go('scr-role')">BACK</button>
+    </div>
+  </section>
+
+  <!-- PLAYER WAIT -->
+  <section id="scr-wait" class="screen">
+    <h2 class="title" id="waitname">You're in!</h2>
+    <p class="sub">Waiting for the host to start the game…</p>
+    <div class="pin" style="gap:0"><span style="font-size:min(14vh,18vw)">⏳</span></div>
+    <button class="btn ghost sm" onclick="leaveGame()">LEAVE</button>
+  </section>
+
+  <!-- PLAYER GAME -->
+  <section id="scr-play" class="screen">
+    <div class="mybox dim" id="mybox">TEAM</div>
+    <div class="buzzwrap">
+      <button id="buzzer" class="locked" onclick="hitBuzzer()">BUZZ</button>
+    </div>
+    <div class="statusline" id="pstatus">Wait for the host…</div>
+  </section>
+
+  <!-- OVER -->
+  <section id="scr-over" class="screen">
+    <h2 class="title" style="font-size:clamp(22px,6vw,72px)">GAME OVER</h2>
+    <p class="sub">Thank you for playing 🙏</p>
+    <button class="btn" onclick="location.reload()">BACK TO START</button>
+  </section>
+
+</main>
+
+<script>
+/* ===================== setup ===================== */
+const $ = id => document.getElementById(id);
+function go(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on')); $(id).classList.add('on'); requestAnimationFrame(sizeAll); }
+function fatal(msg){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  const o=$('scr-over'); o.classList.add('on');
+  o.innerHTML='<h2 class="title">Connection problem</h2><p class="sub">'+msg+'</p>';
+}
+
+const ROOT = 'buzzer';
+let db = null, srvOffset = 0;
+try {
+  if(typeof firebase === 'undefined') throw new Error('Firebase library did not load — check your internet connection.');
+  if(!DATABASE_URL || DATABASE_URL.indexOf('firebasedatabase') < 0 && DATABASE_URL.indexOf('firebaseio') < 0)
+    throw new Error('Set DATABASE_URL at the top of index.html to your Firebase Realtime Database URL.');
+  firebase.initializeApp({ databaseURL: DATABASE_URL });
+  db = firebase.database();
+  db.ref('.info/serverTimeOffset').on('value', s => { srvOffset = s.val() || 0; });
+} catch(err) {
+  setTimeout(()=>fatal(err.message), 50);
+}
+const now = () => Date.now() + srvOffset;
+
+const store = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return mem[k]||null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){ mem[k]=v; } },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){ delete mem[k]; } }
+};
+const mem = {};
+
+/* ===================== shared state ===================== */
+let PIN = null, gref = null, teams = {}, round = {n:1,locked:true,unlockAt:null,winner:null};
+let isHost = false, myKey = null, myNum = null, myName = null, buzzedRound = 0;
+
+/* ===================== HOST ===================== */
+function hostLogin(){
+  if($('hostpw').value.trim() !== 'Sharad'){ $('pwerr').textContent = 'Wrong password'; return; }
+  $('pwerr').textContent = ''; $('hostpw').value='';
+  isHost = true;
+  createGame();
+}
+
+async function createGame(){
+  let pin, tries=0;
+  while(true){
+    pin = String(Math.floor(1000 + Math.random()*9000));
+    const snap = await db.ref(ROOT+'/'+pin).get();
+    if(!snap.exists() || ++tries>12) break;
+  }
+  PIN = pin;
+  gref = db.ref(ROOT+'/'+PIN);
+  await gref.set({
+    createdAt: firebase.database.ServerValue.TIMESTAMP,
+    status: 'lobby',
+    round: { n:1, locked:true, unlockAt:null, winner:null }
+  });
+  $('pinbox').innerHTML = PIN.split('').map(d=>'<span>'+d+'</span>').join('');
+  $('pinchip').textContent = 'PIN ' + PIN;
+  attachHostListeners();
+  go('scr-lobby');
+  window.addEventListener('beforeunload', ()=>{ /* keep game alive */ });
+}
+
+function attachHostListeners(){
+  gref.child('teams').on('value', s => {
+    teams = s.val() || {};
+    const n = Object.keys(teams).length;
+    $('lobbycount').textContent = n + (n===1?' team joined':' teams joined');
+    $('btnStart').disabled = n === 0;
+    renderLobby();
+    renderHostGrid();
+  });
+  gref.child('round').on('value', s => {
+    round = s.val() || round;
+    renderHostRound();
+    renderHostGrid();
+  });
+  gref.child('status').on('value', s => {
+    if(s.val() === 'live') go('scr-hostgame');
+    if(s.val() === 'ended') go('scr-over');
+  });
+}
+
+function sortedTeams(){
+  return Object.entries(teams)
+    .map(([k,v])=>({k,...v}))
+    .sort((a,b)=> (parseInt(a.num)||999)-(parseInt(b.num)||999) || (a.at||0)-(b.at||0));
+}
+
+function renderLobby(){
+  const g = $('lobbygrid'), list = sortedTeams();
+  g.innerHTML = list.map(t=>
+    '<div class="tbox"><button class="kick" onclick="kick(\''+t.k+'\')">✕</button>'+
+    '<div class="num">'+esc(t.num)+'</div><div class="nm">'+esc(t.name)+'</div></div>').join('');
+  sizeGrid(g, list.length);
+}
+
+function kick(key){ gref.child('teams/'+key).remove(); }
+
+function startGame(){
+  gref.update({ status:'live', round:{n:1,locked:true,unlockAt:null,winner:null} });
+}
+
+let AC=null, lastWin=null;
+function ding(){
+  try{
+    AC = AC || new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==='suspended') AC.resume();
+    [[880,0],[1320,.09]].forEach(([f,t])=>{
+      const o=AC.createOscillator(), g=AC.createGain();
+      o.type='triangle'; o.frequency.value=f;
+      g.gain.setValueAtTime(.0001,AC.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(.35,AC.currentTime+t+.01);
+      g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+t+.35);
+      o.connect(g); g.connect(AC.destination); o.start(AC.currentTime+t); o.stop(AC.currentTime+t+.4);
+    });
+  }catch(e){}
+}
+function renderHostRound(){
+  $('roundchip').textContent = 'ROUND ' + (round.n||1);
+  const w = round.winner;
+  $('btnUnlock').disabled = !round.locked;
+  const wid = w ? (w.team + '#' + (round.n||1)) : null;
+  if(wid && wid !== lastWin){ lastWin = wid; ding(); }
+  if(!w) lastWin = null;
+  if(w){
+    $('winbanner').classList.remove('hide');
+    $('winbanner').textContent = '🏆  TEAM ' + w.num + ' — ' + w.name + '   •   ' + (w.ms/1000).toFixed(3) + ' s';
+    $('hstatus').textContent = 'Buzzed in! Their round to play.';
+    $('btnUnlock').disabled = true;
+  } else {
+    $('winbanner').classList.add('hide');
+    $('hstatus').textContent = round.locked
+      ? 'Locked — press UNLOCK to arm the buzzers'
+      : 'UNLOCKED — buzzers are live…';
+  }
+}
+
+function renderHostGrid(){
+  const g = $('hostgrid'), list = sortedTeams(), w = round.winner;
+  g.innerHTML = list.map(t=>{
+    let cls = 'tbox';
+    if(w && w.team === t.k) cls += ' win';
+    else if(round.locked) cls += ' dim';
+    else cls += ' live';
+    const time = (w && w.team===t.k) ? '<div class="tm">'+(w.ms/1000).toFixed(3)+' s</div>' : '';
+    return '<div class="'+cls+'"><div class="num">'+esc(t.num)+'</div><div class="nm">'+esc(t.name)+'</div>'+time+'</div>';
+  }).join('');
+  sizeGrid(g, list.length);
+}
+
+function unlockRound(){
+  gref.child('round').set({
+    n: round.n||1, locked:false,
+    unlockAt: firebase.database.ServerValue.TIMESTAMP,
+    winner: null
+  });
+}
+function nextQuestion(){
+  gref.child('round').set({ n:(round.n||1)+1, locked:true, unlockAt:null, winner:null });
+}
+function cancelRound(){
+  gref.child('round').set({ n:(round.n||1), locked:true, unlockAt:null, winner:null });
+}
+function endGame(){
+  if(gref) gref.update({status:'ended'});
+  go('scr-over');
+}
+
+/* ===================== PLAYER ===================== */
+async function joinGame(){
+  const pin = $('jpin').value.trim(), num = $('jnum').value.trim(), name = $('jname').value.trim();
+  const e = $('joinerr'); e.textContent='';
+  if(!/^\d{4}$/.test(pin)){ e.textContent='Enter the 4-digit PIN'; return; }
+  if(!num){ e.textContent='Enter your team number'; return; }
+  if(!name){ e.textContent='Enter your team name'; return; }
+  const snap = await db.ref(ROOT+'/'+pin+'/status').get();
+  if(!snap.exists()){ e.textContent='No game found with that PIN'; return; }
+  if(snap.val()==='ended'){ e.textContent='That game has ended'; return; }
+
+  PIN = pin; gref = db.ref(ROOT+'/'+PIN);
+  const ref = gref.child('teams').push();
+  myKey = ref.key; myNum = num; myName = name;
+  await ref.set({ num, name, at: firebase.database.ServerValue.TIMESTAMP });
+  store.set('bz_pin',PIN); store.set('bz_key',myKey); store.set('bz_num',num); store.set('bz_name',name);
+  $('waitname').textContent = 'Team ' + num + ' — ' + name;
+  $('mybox').textContent = 'TEAM ' + num + '  •  ' + name;
+  attachPlayerListeners();
+  go('scr-wait');
+}
+
+function attachPlayerListeners(){
+  gref.child('teams/'+myKey).on('value', s => {
+    if(!s.exists()){ // removed by host
+      detachPlayer(); store.del('bz_pin'); store.del('bz_key');
+      $('joinerr').textContent = 'The host removed your team';
+      go('scr-join');
+    }
+  });
+  gref.child('status').on('value', s => {
+    const v = s.val();
+    if(v === 'live'){ if(!$('scr-play').classList.contains('on')) go('scr-play'); }
+    else if(v === 'lobby'){ go('scr-wait'); }
+    else { go('scr-over'); }
+  });
+  gref.child('round').on('value', s => {
+    const r = s.val(); if(!r) return;
+    if(r.locked || r.n !== round.n) buzzedRound = 0;
+    round = r;
+    renderPlayer();
+  });
+}
+function detachPlayer(){ if(gref) gref.off(); }
+function leaveGame(){
+  if(gref && myKey) gref.child('teams/'+myKey).remove();
+  detachPlayer(); store.del('bz_pin'); store.del('bz_key');
+  go('scr-role');
+}
+
+function renderPlayer(){
+  const b = $('buzzer'), mb = $('mybox'), st = $('pstatus');
+  const w = round.winner;
+  const iBuzzed = buzzedRound === round.n;
+  b.classList.remove('locked','armed','spent');
+  if(round.locked){
+    mb.className = 'mybox dim'; b.classList.add('locked');
+    b.textContent = 'WAIT'; st.textContent = 'Round ' + round.n + ' — waiting for the host to unlock';
+    return;
+  }
+  mb.className = 'mybox live';
+  if(iBuzzed || w){
+    b.classList.add('spent');
+    b.textContent = (w && w.team===myKey) ? 'YOU!' : 'BUZZED';
+    if(w && w.team===myKey) st.textContent = '🏆 You buzzed first — ' + (w.ms/1000).toFixed(3) + ' s';
+    else if(w) st.textContent = 'Team ' + w.num + ' (' + w.name + ') got in first';
+    else st.textContent = 'Buzz sent…';
+  } else {
+    b.classList.add('armed'); b.textContent = 'BUZZ';
+    st.textContent = 'BUZZ NOW!';
+  }
+}
+
+function hitBuzzer(){
+  if(round.locked || buzzedRound === round.n || round.winner) return;
+  buzzedRound = round.n;
+  const ms = Math.max(0, now() - (round.unlockAt || now()));
+  renderPlayer();
+  const rn = round.n;
+  gref.child('round/winner').transaction(cur => {
+    if(cur === null) return { team: myKey, num: myNum, name: myName, ms: ms, rn: rn };
+    return;
+  });
+}
+
+/* rejoin after refresh */
+(async function rejoin(){
+  const p = store.get('bz_pin'), k = store.get('bz_key');
+  if(!p || !k) return;
+  const s = await db.ref(ROOT+'/'+p+'/teams/'+k).get();
+  if(!s.exists()) { store.del('bz_pin'); store.del('bz_key'); return; }
+  PIN = p; gref = db.ref(ROOT+'/'+p); myKey = k;
+  myNum = s.val().num; myName = s.val().name;
+  $('waitname').textContent = 'Team ' + myNum + ' — ' + myName;
+  $('mybox').textContent = 'TEAM ' + myNum + '  •  ' + myName;
+  attachPlayerListeners();
+  go('scr-wait');
+})();
+
+/* ===================== layout ===================== */
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function sizeGrid(el, n){
+  if(!n){ el.style.setProperty('--cols',1); el.style.setProperty('--rows',1); return; }
+  const w = el.clientWidth, h = el.clientHeight;
+  if(!w || !h) return;
+  let best = {c:1,r:n,score:-1};
+  for(let c=1;c<=n;c++){
+    const r = Math.ceil(n/c);
+    const bw = w/c, bh = h/r;
+    const score = Math.min(bw/1.5, bh);
+    if(score > best.score) best = {c,r,score};
+  }
+  el.style.setProperty('--cols',best.c);
+  el.style.setProperty('--rows',best.r);
+  const bs = Math.min(h/best.r, (w/best.c)/1.5);
+  el.style.setProperty('--bs', bs.toFixed(1)+'px');
+}
+function sizeAll(){
+  const l=$('lobbygrid'), hg=$('hostgrid');
+  if(l) sizeGrid(l, l.children.length);
+  if(hg) sizeGrid(hg, hg.children.length);
+}
+window.addEventListener('resize', sizeAll);
+window.addEventListener('orientationchange', ()=>setTimeout(sizeAll,250));
+document.addEventListener('gesturestart', e=>e.preventDefault());
+['jpin','jnum'].forEach(id=>$(id).addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'')}));
+$('hostpw').addEventListener('keydown',e=>{ if(e.key==='Enter') hostLogin(); });
+$('jname').addEventListener('keydown',e=>{ if(e.key==='Enter') joinGame(); });
+setTimeout(sizeAll,300);
+</script>
+</body>
+</html>
