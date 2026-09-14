@@ -11,6 +11,25 @@
 </script>
 <!-- =========================================================================== -->
 
+<!-- ============ YOUR PUZZLE QUESTIONS — edit this list freely ================= -->
+<script>
+  const THEME = "FAMOUS DIALOGUES";
+  const QUESTIONS = [
+    "Yeh Baburao Ka Style hai",
+    "Jahapanah Tussi Great Ho",
+    "Aata Majhi Satakli",
+    "Tumse Na Ho Payega",
+    "Mogambo Khush Hua",
+    "Abba Dabba Jabba",
+    "Naam to suna hi hoga",
+    "Pushpa I hate tears",
+    "Dhai kilo ka haat",
+    "Mai Tera khoon pijaunga"
+  ];
+  const REVEAL_EVERY_MS = 3000;   // one random square fades away this often
+</script>
+<!-- =========================================================================== -->
+
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
@@ -173,6 +192,88 @@ input::placeholder{color:#ffd98a80;font-weight:600}
   padding:.6vh 3vw;font-size:clamp(13px,2.4vw,30px);box-shadow:0 0 24px rgba(22,196,106,.6);
 }
 .hide{display:none !important}
+
+/* ================= host game: 65 / 35 split ================= */
+#scr-hostgame{padding:0;gap:0}
+.split{display:flex;width:100%;height:100%;align-items:stretch}
+.pane-quiz{flex:0 0 65%;min-width:0;display:flex;flex-direction:column;gap:.8vh;padding:1.2vh 1.2vw}
+.pane-buzz{flex:1 1 35%;min-width:0;display:flex;flex-direction:column;gap:.7vh;padding:1.2vh 1vw;
+  background:linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,.12))}
+.divider{flex:0 0 6px;align-self:stretch;
+  background:linear-gradient(180deg,#fff3c4,var(--gold),var(--gold2));
+  box-shadow:0 0 14px rgba(255,201,60,.75), 0 0 3px rgba(0,0,0,.6)}
+
+.panehead{flex:0 0 auto;display:flex;justify-content:space-between;align-items:baseline;
+  border-bottom:2px solid rgba(255,201,60,.35);padding-bottom:.5vh}
+.themelbl{font-size:clamp(12px,1.8vw,26px);font-weight:900;letter-spacing:3px;color:var(--gold)}
+.prog{font-size:clamp(9px,1.1vw,15px);font-weight:800;color:#ffdca8;letter-spacing:1px}
+
+/* numbered question wall */
+.wall{flex:1 1 auto;min-height:0;display:grid;gap:1vh 1vw;
+  grid-template-columns:repeat(var(--cols,5),1fr);grid-template-rows:repeat(var(--rows,2),1fr)}
+.qbox{position:relative;border-radius:16px;display:flex;align-items:center;justify-content:center;
+  font-weight:900;cursor:pointer;overflow:hidden;border:3px solid rgba(255,255,255,.35);
+  font-size:calc(var(--bs,80px)*.46);color:#fff;text-shadow:0 3px 8px rgba(0,0,0,.45);
+  box-shadow:0 6px 0 rgba(0,0,0,.35), 0 10px 22px rgba(0,0,0,.35);
+  transition:transform .12s, filter .2s}
+.qbox:hover{transform:translateY(-3px) scale(1.02)}
+.qbox:active{transform:translateY(3px)}
+.qbox.done{opacity:.45;filter:grayscale(.9);cursor:default;box-shadow:none;transform:none}
+.qbox.done::after{content:'';position:absolute;left:6%;right:6%;top:calc(50% - .04 * var(--bs,80px));
+  height:calc(var(--bs,80px)*.08);border-radius:99px;
+  background:#fff;transform:rotate(-13deg);box-shadow:0 0 10px rgba(0,0,0,.7)}
+
+/* puzzle board */
+.puzzle{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:1vh}
+.puzzletop{flex:0 0 auto;display:flex;align-items:center;gap:1.2vw;justify-content:center}
+.qno{font-size:clamp(13px,1.8vw,26px);font-weight:900;color:#3d0a1f;background:var(--gold);
+  padding:.25em .9em;border-radius:999px}
+.hint{font-size:clamp(11px,1.4vw,20px);font-weight:800;color:#ffdca8;letter-spacing:2px}
+.board{flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-wrap:wrap;
+  align-content:center;justify-content:center;gap:calc(var(--ts,50px)*.28) calc(var(--ts,50px)*.62)}
+.word{display:flex;gap:calc(var(--ts,50px)*.10)}
+.tile{position:relative;width:var(--ts,50px);height:var(--ts,50px);
+  border-radius:calc(var(--ts,50px)*.15);display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--ts,50px)*.62);font-weight:900;color:#3d0a1f;
+  background:linear-gradient(180deg,#fffceb,#f0dca6);
+  box-shadow:inset 0 calc(var(--ts,50px)*-.07) 0 rgba(0,0,0,.16), 0 4px 10px rgba(0,0,0,.35)}
+.tile .cap{position:absolute;inset:0;border-radius:inherit;
+  background:linear-gradient(160deg,#9c1b42,#4a0a1e);
+  border:2px solid rgba(255,201,60,.6);
+  box-shadow:inset 0 0 calc(var(--ts,50px)*.25) rgba(0,0,0,.5);
+  transition:opacity .7s ease, transform .7s ease}
+.tile .cap::after{content:'?';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:rgba(255,201,60,.55);font-size:calc(var(--ts,50px)*.5);font-weight:900}
+.tile.open .cap{opacity:0;transform:scale(.55) rotate(-10deg)}
+
+/* countdown bar: total = letters x 3s, no digits shown */
+.timerwrap{flex:0 0 auto;width:100%;height:clamp(14px,3.4vh,34px);border-radius:99px;
+  background:rgba(0,0,0,.45);border:2px solid rgba(255,201,60,.45);overflow:hidden;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.6)}
+.timerbar{height:100%;width:100%;border-radius:99px;
+  background:linear-gradient(180deg,#7dffb0,#0ca84f);
+  box-shadow:0 0 16px rgba(22,196,106,.75);
+  transition:width .12s linear, background .3s}
+.timerbar.low{background:linear-gradient(180deg,#ff7b7b,#c40000);
+  box-shadow:0 0 18px rgba(255,40,40,.85);animation:tblink .55s steps(2,start) infinite}
+@keyframes tblink{50%{opacity:.3}}
+.timerbar.done{width:0 !important}
+
+/* right pane bits */
+.chiprow{flex:0 0 auto;display:flex;gap:.6vw;justify-content:space-between;align-items:center}
+.btnbar{flex:0 0 auto;display:grid;grid-template-columns:1fr 1fr;gap:.7vh .6vw;width:100%}
+.btnbar .btn{padding:1.2vh .5vw;font-size:clamp(10px,1.05vw,16px);border-radius:12px;width:100%}
+.btnbar .btn.wide{grid-column:1 / -1}
+#scr-hostgame .statusline{font-size:clamp(11px,1.15vw,18px)}
+#scr-hostgame .winbanner{font-size:clamp(11px,1.15vw,18px);padding:.5vh 1vw}
+
+/* narrow / portrait fallback: stack instead of side by side */
+@media (max-aspect-ratio: 1/1){
+  .split{flex-direction:column}
+  .pane-quiz{flex:0 0 62%}
+  .pane-buzz{flex:1 1 38%}
+  .divider{flex:0 0 5px;width:100%}
+}
 </style>
 </head>
 <body>
@@ -226,22 +327,54 @@ input::placeholder{color:#ffd98a80;font-weight:600}
   </section>
 
   <!-- HOST GAME -->
-  <section id="scr-hostgame" class="screen" style="justify-content:flex-start">
-    <div class="bar" style="justify-content:space-between">
-      <span class="roundchip" id="roundchip">ROUND 1</span>
-      <span class="statusline" id="hstatus">Locked — press UNLOCK to arm the buzzers</span>
-      <span class="roundchip" id="pinchip">PIN 0000</span>
-    </div>
-    <div class="winbanner hide" id="winbanner"></div>
-    <div class="gridwrap">
-      <div class="grid" id="hostgrid"></div>
-    </div>
-    <div class="bar">
-      <button class="btn grn" id="btnUnlock" onclick="unlockRound()">UNLOCK</button>
-      <button class="btn" id="btnRefresh" onclick="refreshBuzzers()">REFRESH BUZZER</button>
-      <button class="btn" id="btnNext" onclick="nextQuestion()">NEXT QUESTION</button>
-      <button class="btn ghost" id="btnCancel" onclick="cancelRound()">CANCEL ROUND</button>
-      <button class="btn danger" id="btnEnd" onclick="endGame()">END GAME</button>
+  <section id="scr-hostgame" class="screen">
+    <div class="split">
+
+      <!-- ---------- 65% : QUIZ ---------- -->
+      <div class="pane-quiz">
+        <div class="panehead">
+          <span class="themelbl" id="themelbl">THEME</span>
+          <span class="prog" id="qprog"></span>
+        </div>
+
+        <div class="wall" id="qwall"></div>
+
+        <div class="puzzle hide" id="qpuzzle">
+          <div class="puzzletop">
+            <span class="qno" id="pzno">Q1</span>
+            <span class="hint" id="pzhint">Guess the hidden line</span>
+          </div>
+          <div class="board" id="board"></div>
+          <div class="timerwrap"><div class="timerbar" id="timerbar"></div></div>
+          <div class="bar">
+            <button class="btn sm" onclick="showAnswer()">SHOW ANSWER</button>
+            <button class="btn ghost sm" onclick="backToQuestions()">BACK TO QUESTIONS</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- ---------- 35% : BUZZER ---------- -->
+      <div class="pane-buzz">
+        <div class="chiprow">
+          <span class="roundchip" id="roundchip">ROUND 1</span>
+          <span class="roundchip" id="pinchip">PIN 0000</span>
+        </div>
+        <div class="statusline" id="hstatus">Pick a question, then press UNLOCK</div>
+        <div class="winbanner hide" id="winbanner"></div>
+        <div class="gridwrap">
+          <div class="grid" id="hostgrid"></div>
+        </div>
+        <div class="btnbar">
+          <button class="btn grn" id="btnUnlock" onclick="unlockRound()">UNLOCK</button>
+          <button class="btn" id="btnRefresh" onclick="refreshBuzzers()">REFRESH BUZZER</button>
+          <button class="btn" id="btnNext" onclick="nextQuestion()">NEXT QUESTION</button>
+          <button class="btn ghost" id="btnCancel" onclick="cancelRound()">CANCEL ROUND</button>
+          <button class="btn danger wide" id="btnEnd" onclick="endGame()">END GAME</button>
+        </div>
+      </div>
+
     </div>
   </section>
 
@@ -367,7 +500,7 @@ function attachHostListeners(){
     renderHostGrid();
   });
   gref.child('status').on('value', s => {
-    if(s.val() === 'live') go('scr-hostgame');
+    if(s.val() === 'live'){ go('scr-hostgame'); $('themelbl').textContent = THEME; renderWall(); }
     if(s.val() === 'ended') go('scr-over');
   });
 }
@@ -407,8 +540,111 @@ function ding(){
     });
   }catch(e){}
 }
+/* ================= quiz: wall, puzzle, reveal ================= */
+const QCOL = ['#e53935','#8e24aa','#1e88e5','#00a86b','#f4511e',
+              '#3949ab','#00b8d4','#ff7043','#7cb342','#d81b60'];
+let qIndex = -1, played = {}, tiles = [], revealTimer = null, answerShown = false;
+let clockTimer = null, totalMs = 0, elapsedMs = 0, lastTs = 0;
+
+function clockRunning(){
+  return qIndex >= 0 && !answerShown && round && !round.locked && !round.winner && elapsedMs < totalMs;
+}
+function clockTick(){
+  const t = Date.now();
+  if(clockRunning() && lastTs) elapsedMs = Math.min(totalMs, elapsedMs + (t - lastTs));
+  lastTs = t;
+  drawBar();
+}
+function drawBar(){
+  const bar = $('timerbar'); if(!bar) return;
+  const left = totalMs ? Math.max(0, 1 - elapsedMs/totalMs) : 1;
+  bar.style.width = (left*100).toFixed(2) + '%';
+  bar.classList.toggle('low', left > 0 && left <= 0.15);
+}
+function stopClock(){ clearInterval(clockTimer); clockTimer = null; }
+
+function renderWall(){
+  const w = $('qwall');
+  w.innerHTML = QUESTIONS.map((q,i)=>
+    '<div class="qbox'+(played[i]?' done':'')+'" style="background:linear-gradient(180deg,'+
+    QCOL[i%QCOL.length]+',rgba(0,0,0,.45))" '+
+    (played[i]?'':'onclick="openQuestion('+i+')"')+'>'+(i+1)+'</div>').join('');
+  const n = Object.keys(played).length;
+  $('qprog').textContent = n + ' / ' + QUESTIONS.length + ' PLAYED';
+  sizeWall();
+}
+function sizeWall(){
+  const w = $('qwall'); if(!w || !QUESTIONS.length) return;
+  const W = w.clientWidth, H = w.clientHeight; if(!W || !H) return;
+  const n = QUESTIONS.length; let best={c:1,r:n,score:-1};
+  for(let c=1;c<=n;c++){ const r=Math.ceil(n/c);
+    const sc = Math.min(W/c, H/r) * Math.pow(n/(c*r), 1.6);  // strongly prefer full rows
+    if(sc>best.score) best={c,r,score:sc}; }
+  w.style.setProperty('--cols',best.c); w.style.setProperty('--rows',best.r);
+  w.style.setProperty('--bs', Math.min(H/best.r, W/best.c).toFixed(1)+'px');
+}
+
+function openQuestion(i){
+  if(played[i]) return;
+  qIndex = i; answerShown = false;
+  $('qwall').classList.add('hide'); $('qpuzzle').classList.remove('hide');
+  $('pzno').textContent = 'Q' + (i+1);
+  $('pzhint').textContent = THEME;
+  buildBoard(QUESTIONS[i]);
+  // countdown: total seconds = number of hidden letters x 3
+  totalMs = tiles.filter(t=>!t.classList.contains('open')).length * REVEAL_EVERY_MS;
+  elapsedMs = 0; lastTs = 0; drawBar();
+  // fresh, locked round for this question
+  if(gref) gref.child('round').set({ n:i+1, locked:true, unlockAt:null, winner:null });
+  clearInterval(revealTimer);
+  revealTimer = setInterval(revealTick, REVEAL_EVERY_MS);
+  stopClock(); clockTimer = setInterval(clockTick, 100);
+}
+
+function buildBoard(text){
+  const board = $('board');
+  board.innerHTML = String(text).split(/\s+/).filter(Boolean).map(word =>
+    '<div class="word">' + word.split('').map(ch =>
+      /[A-Za-z0-9\u0900-\u097F]/.test(ch)
+        ? '<div class="tile"><span>'+esc(ch.toUpperCase())+'</span><i class="cap"></i></div>'
+        : '<div class="tile open"><span>'+esc(ch)+'</span><i class="cap"></i></div>'
+    ).join('') + '</div>').join('');
+  tiles = Array.prototype.slice.call(board.querySelectorAll('.tile'));
+  fitBoard();
+}
+function fitBoard(){
+  const board = $('board'); if(!board || !tiles.length) return;
+  let lo = 8, hi = 160;
+  for(let i=0;i<20;i++){
+    const mid = (lo+hi)/2;
+    board.style.setProperty('--ts', mid.toFixed(2)+'px');
+    if(board.scrollHeight <= board.clientHeight + 1 && board.scrollWidth <= board.clientWidth + 1) lo = mid;
+    else hi = mid;
+  }
+  board.style.setProperty('--ts', (lo*0.97).toFixed(2)+'px');
+}
+function revealTick(){
+  if(answerShown) return;
+  if(!round || round.locked || round.winner) return;      // frozen the moment a team buzzes
+  const hidden = tiles.filter(t=>!t.classList.contains('open'));
+  if(!hidden.length) return;
+  hidden[Math.floor(Math.random()*hidden.length)].classList.add('open');
+}
+function showAnswer(){
+  answerShown = true;
+  tiles.forEach(t=>t.classList.add('open'));
+}
+function backToQuestions(){
+  clearInterval(revealTimer); revealTimer = null; stopClock();
+  if(qIndex >= 0) played[qIndex] = true;
+  qIndex = -1; tiles = [];
+  $('qpuzzle').classList.add('hide'); $('qwall').classList.remove('hide');
+  if(gref) gref.child('round').set({ n:(round.n||1), locked:true, unlockAt:null, winner:null });
+  renderWall();
+}
+
 function renderHostRound(){
-  $('roundchip').textContent = 'ROUND ' + (round.n||1);
+  $('roundchip').textContent = (qIndex>=0 ? 'Q' + (round.n||1) : 'ROUND ' + (round.n||1));
   const w = round.winner;
   $('btnUnlock').disabled = !round.locked;
   const wid = w ? (w.team + '#' + (round.n||1) + '#' + (round.unlockAt||0)) : null;
@@ -422,8 +658,8 @@ function renderHostRound(){
   } else {
     $('winbanner').classList.add('hide');
     $('hstatus').textContent = round.locked
-      ? 'Locked — press UNLOCK to arm the buzzers'
-      : 'UNLOCKED — buzzers are live…';
+      ? (qIndex>=0 ? 'Press UNLOCK to start the reveal' : 'Pick a question, then press UNLOCK')
+      : 'UNLOCKED — squares revealing…';
   }
 }
 
@@ -456,6 +692,7 @@ function refreshBuzzers(){
   });
 }
 function nextQuestion(){
+  if(qIndex >= 0){ backToQuestions(); return; }
   gref.child('round').set({ n:(round.n||1)+1, locked:true, unlockAt:null, winner:null });
 }
 function cancelRound(){
@@ -596,6 +833,7 @@ function sizeAll(){
   const l=$('lobbygrid'), hg=$('hostgrid');
   if(l) sizeGrid(l, l.children.length);
   if(hg) sizeGrid(hg, hg.children.length);
+  sizeWall(); fitBoard();
 }
 window.addEventListener('resize', sizeAll);
 window.addEventListener('orientationchange', ()=>setTimeout(sizeAll,250));
