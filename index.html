@@ -131,7 +131,8 @@ input::placeholder{color:#ffd98a80;font-weight:600}
 }
 
 /* ---------- host bar ---------- */
-.bar{flex:0 0 auto;display:flex;gap:1vw;flex-wrap:wrap;justify-content:center;align-items:center;width:100%}
+.bar{flex:0 0 auto;display:flex;gap:.8vw;flex-wrap:wrap;justify-content:center;align-items:center;width:100%}
+#scr-hostgame .bar:last-child .btn{padding:1.4vh 1.8vw;font-size:clamp(11px,1.55vw,21px)}
 .statusline{
   flex:0 0 auto;text-align:center;font-weight:900;
   font-size:clamp(12px,2.2vw,28px);color:var(--gold);min-height:1.3em;
@@ -142,6 +143,7 @@ input::placeholder{color:#ffd98a80;font-weight:600}
 }
 
 /* ---------- player buzzer ---------- */
+.toprow{flex:0 0 auto;display:flex;gap:2vw;align-items:center;justify-content:center;width:100%}
 .mybox{
   flex:0 0 auto;border-radius:14px;padding:.8vh 3vw;text-align:center;
   border:2px solid rgba(255,201,60,.5);background:rgba(255,255,255,.1);
@@ -236,6 +238,7 @@ input::placeholder{color:#ffd98a80;font-weight:600}
     </div>
     <div class="bar">
       <button class="btn grn" id="btnUnlock" onclick="unlockRound()">UNLOCK</button>
+      <button class="btn" id="btnRefresh" onclick="refreshBuzzers()">REFRESH BUZZER</button>
       <button class="btn" id="btnNext" onclick="nextQuestion()">NEXT QUESTION</button>
       <button class="btn ghost" id="btnCancel" onclick="cancelRound()">CANCEL ROUND</button>
       <button class="btn danger" id="btnEnd" onclick="endGame()">END GAME</button>
@@ -265,7 +268,10 @@ input::placeholder{color:#ffd98a80;font-weight:600}
 
   <!-- PLAYER GAME -->
   <section id="scr-play" class="screen">
-    <div class="mybox dim" id="mybox">TEAM</div>
+    <div class="toprow">
+      <div class="mybox dim" id="mybox">TEAM</div>
+      <button class="btn ghost sm" onclick="leaveGame()">LEAVE</button>
+    </div>
     <div class="buzzwrap">
       <button id="buzzer" class="locked" onclick="hitBuzzer()">BUZZ</button>
     </div>
@@ -276,7 +282,7 @@ input::placeholder{color:#ffd98a80;font-weight:600}
   <section id="scr-over" class="screen">
     <h2 class="title" style="font-size:clamp(22px,6vw,72px)">GAME OVER</h2>
     <p class="sub">Thank you for playing 🙏</p>
-    <button class="btn" onclick="location.reload()">BACK TO START</button>
+    <button class="btn" onclick="logout()">BACK TO START</button>
   </section>
 
 </main>
@@ -314,7 +320,8 @@ const mem = {};
 
 /* ===================== shared state ===================== */
 let PIN = null, gref = null, teams = {}, round = {n:1,locked:true,unlockAt:null,winner:null};
-let isHost = false, myKey = null, myNum = null, myName = null, buzzedRound = 0;
+let isHost = false, myKey = null, myNum = null, myName = null, buzzedArm = null;
+const armId = r => (r? r.n : 0) + ':' + ((r && r.unlockAt) || 0);
 
 /* ===================== HOST ===================== */
 function hostLogin(){
@@ -404,7 +411,7 @@ function renderHostRound(){
   $('roundchip').textContent = 'ROUND ' + (round.n||1);
   const w = round.winner;
   $('btnUnlock').disabled = !round.locked;
-  const wid = w ? (w.team + '#' + (round.n||1)) : null;
+  const wid = w ? (w.team + '#' + (round.n||1) + '#' + (round.unlockAt||0)) : null;
   if(wid && wid !== lastWin){ lastWin = wid; ding(); }
   if(!w) lastWin = null;
   if(w){
@@ -434,6 +441,14 @@ function renderHostGrid(){
 }
 
 function unlockRound(){
+  gref.child('round').set({
+    n: round.n||1, locked:false,
+    unlockAt: firebase.database.ServerValue.TIMESTAMP,
+    winner: null
+  });
+}
+function refreshBuzzers(){
+  // clears any buzz and re-arms every buzzer at once, same question
   gref.child('round').set({
     n: round.n||1, locked:false,
     unlockAt: firebase.database.ServerValue.TIMESTAMP,
@@ -485,26 +500,31 @@ function attachPlayerListeners(){
     const v = s.val();
     if(v === 'live'){ if(!$('scr-play').classList.contains('on')) go('scr-play'); }
     else if(v === 'lobby'){ go('scr-wait'); }
-    else { go('scr-over'); }
+    else { detachPlayer(); clearMe(); go('scr-over'); }
   });
   gref.child('round').on('value', s => {
     const r = s.val(); if(!r) return;
-    if(r.locked || r.n !== round.n) buzzedRound = 0;
     round = r;
     renderPlayer();
   });
 }
 function detachPlayer(){ if(gref) gref.off(); }
+function clearMe(){
+  store.del('bz_pin'); store.del('bz_key'); store.del('bz_num'); store.del('bz_name');
+  myKey = null; myNum = null; myName = null; buzzedArm = null;
+}
 function leaveGame(){
   if(gref && myKey) gref.child('teams/'+myKey).remove();
-  detachPlayer(); store.del('bz_pin'); store.del('bz_key');
+  detachPlayer(); clearMe(); gref = null; PIN = null;
+  $('jpin').value=''; $('joinerr').textContent='';
   go('scr-role');
 }
+function logout(){ detachPlayer(); clearMe(); location.reload(); }
 
 function renderPlayer(){
   const b = $('buzzer'), mb = $('mybox'), st = $('pstatus');
   const w = round.winner;
-  const iBuzzed = buzzedRound === round.n;
+  const iBuzzed = buzzedArm !== null && buzzedArm === armId(round);
   b.classList.remove('locked','armed','spent');
   if(round.locked){
     mb.className = 'mybox dim'; b.classList.add('locked');
@@ -525,8 +545,9 @@ function renderPlayer(){
 }
 
 function hitBuzzer(){
-  if(round.locked || buzzedRound === round.n || round.winner) return;
-  buzzedRound = round.n;
+  if(round.locked || round.winner) return;
+  if(buzzedArm !== null && buzzedArm === armId(round)) return;
+  buzzedArm = armId(round);
   const ms = Math.max(0, now() - (round.unlockAt || now()));
   renderPlayer();
   const rn = round.n;
@@ -540,8 +561,10 @@ function hitBuzzer(){
 (async function rejoin(){
   const p = store.get('bz_pin'), k = store.get('bz_key');
   if(!p || !k) return;
+  const st = await db.ref(ROOT+'/'+p+'/status').get();
+  if(!st.exists() || st.val() === 'ended'){ clearMe(); return; }
   const s = await db.ref(ROOT+'/'+p+'/teams/'+k).get();
-  if(!s.exists()) { store.del('bz_pin'); store.del('bz_key'); return; }
+  if(!s.exists()) { clearMe(); return; }
   PIN = p; gref = db.ref(ROOT+'/'+p); myKey = k;
   myNum = s.val().num; myName = s.val().name;
   $('waitname').textContent = 'Team ' + myNum + ' — ' + myName;
