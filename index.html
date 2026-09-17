@@ -68,14 +68,7 @@ body{
   filter:drop-shadow(0 3px 9px rgba(0,0,0,.55))}
 #hdrpad{flex:0 0 auto}
 .hdrtext{flex:1 1 auto;min-width:0;text-align:center}
-@media (max-width:700px){
-  #hdrpad{display:none}
-  #hdr{gap:2.5vw;padding:.7vh 2.5vw .6vh}
-  #logo{height:clamp(26px,6.2vh,46px)}
-  #hdr .t1{font-size:clamp(11px,3.6vw,19px)}
-  #hdr .t2{font-size:clamp(7px,2.3vw,12px);letter-spacing:1.4px;white-space:nowrap}
-  .xtra{display:none}
-}
+
 #hdr .t1{
   font-size:clamp(13px,2.9vw,34px);font-weight:900;letter-spacing:.5px;white-space:nowrap;
   background:linear-gradient(180deg,#fff3c4,var(--gold),var(--gold2));
@@ -122,13 +115,19 @@ input::placeholder{color:#ffd98a80;font-weight:600}
 .pinwrap{flex:1 1 auto;min-height:0;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5vh}
 .pinlabel{font-size:clamp(11px,1.6vw,20px);letter-spacing:6px;color:#ffdca8;font-weight:800}
 .pin{
-  display:flex;gap:1.5vw;justify-content:center;align-items:center;width:100%;
+  display:flex;gap:min(2.2vw,2.6vh);justify-content:center;align-items:center;width:100%;
 }
 .pin span{
-  font-size:min(22vh,17vw);line-height:.95;font-weight:900;
-  background:linear-gradient(180deg,#fff7d1,var(--gold),var(--gold2));
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-  text-shadow:0 6px 18px rgba(0,0,0,.5);
+  display:flex;align-items:center;justify-content:center;
+  width:min(16vw,19vh);aspect-ratio:1 / 1.2;
+  font-size:min(11vw,13vh);line-height:1;font-weight:900;
+  color:#4a0a1e;
+  background:linear-gradient(180deg,#fffdf4,#f2dfae);
+  border:.5vh solid var(--gold);
+  border-radius:min(2.4vw,2.8vh);
+  box-shadow:0 .9vh 0 #a85c00, 0 1.6vh 3vh rgba(0,0,0,.55),
+             inset 0 -.8vh 0 rgba(0,0,0,.13), inset 0 .5vh 0 rgba(255,255,255,.9);
+  text-shadow:0 2px 0 rgba(255,255,255,.7);
 }
 
 /* ---------- team grid ---------- */
@@ -297,6 +296,47 @@ input::placeholder{color:#ffd98a80;font-weight:600}
   .pane-quiz{flex:0 0 62%}
   .pane-buzz{flex:1 1 38%}
   .divider{flex:0 0 5px;width:100%}
+}
+@media (max-width:700px){
+  #hdrpad{display:none}
+  .xtra{display:none}
+
+  /* header becomes a light band with dark, heavy lettering */
+  #hdr{gap:2.5vw;padding:1vh 2.5vw .9vh;
+    background:linear-gradient(180deg,#fff6de,#ffd77a);
+    border-bottom:4px solid #8a1538}
+  #logo{height:clamp(30px,5vh,44px);filter:none}
+  #hdr .t1{font-size:clamp(13px,4.3vw,23px);letter-spacing:0;
+    white-space:normal;line-height:1.08;
+    background:none;-webkit-background-clip:border-box;background-clip:border-box;
+    color:#5c0a22;-webkit-text-fill-color:#5c0a22;text-shadow:none}
+  #hdr .t2{font-size:clamp(9px,2.9vw,14px);letter-spacing:1.8px;color:#8a1538;white-space:nowrap}
+
+  /* headings, labels and status: dark ink on cream */
+  h2.title{font-size:clamp(19px,5.6vw,30px);color:#4a0a1e;
+    background:linear-gradient(180deg,#fff8e6,#ffe3a8);
+    border:3px solid #8a1538;border-radius:16px;padding:.45em .7em;
+    box-shadow:0 5px 0 rgba(0,0,0,.3)}
+  p.sub{font-size:clamp(14px,4.2vw,20px);font-weight:800;color:#4a0a1e;
+    background:rgba(255,248,230,.95);border-radius:12px;padding:.5em .9em}
+  .statusline{font-size:clamp(16px,4.8vw,24px);color:#3d0a1f;font-weight:900;
+    background:linear-gradient(180deg,#fff8e6,#ffe3a8);
+    border:3px solid #8a1538;border-radius:14px;padding:.4em .9em}
+  .err{font-size:clamp(14px,4.2vw,20px);color:#b00000;font-weight:900}
+  .err:not(:empty){background:#fff1f1;border-radius:10px;padding:.35em .8em}
+
+  /* form fields */
+  input{font-size:clamp(18px,5.2vw,26px);padding:1.7vh 3vw;
+    background:#fffaf0;color:#3d0a1f;border-color:#8a1538}
+  input::placeholder{color:#a98b63;font-weight:800}
+
+  /* buttons and the team badge */
+  .btn{font-size:clamp(16px,4.6vw,23px);padding:1.8vh 5vw}
+  .btn.big{font-size:clamp(18px,5.2vw,27px);padding:2.6vh 6vw}
+  .btn.sm{font-size:clamp(13px,3.8vw,18px);padding:1.2vh 3.5vw}
+  .mybox{font-size:clamp(16px,4.6vw,23px);color:#fff}
+  .mybox.dim{background:#fff8e6;color:#4a0a1e;opacity:.85;filter:none;border-color:#8a1538}
+  .pinlabel{font-size:clamp(12px,3.6vw,18px);color:#ffe9bd;letter-spacing:3px}
 }
 </style>
 </head>
