@@ -13,18 +13,29 @@
 
 <!-- ============ YOUR PUZZLE QUESTIONS — edit this list freely ================= -->
 <script>
-  const THEME = "FAMOUS DIALOGUES";
+  const WALL_TITLE = "PICK A QUESTION";
+  // { q: the hidden line, cat: the category shown once the box is opened }
   const QUESTIONS = [
-    "Yeh Baburao Ka Style hai",
-    "Jahapanah Tussi Great Ho",
-    "Aata Majhi Satakli",
-    "Tumse Na Ho Payega",
-    "Mogambo Khush Hua",
-    "Abba Dabba Jabba",
-    "Naam to suna hi hoga",
-    "Pushpa I hate tears",
-    "Dhai kilo ka haat",
-    "Mai Tera khoon pijaunga"
+    { q:"Rahul Naam Toh Suna Hoga",       cat:"Movie Dialogues" },
+    { q:"Bas Paanch Minute Aur",          cat:"Movie Dialogues" },
+    { q:"Main Apni Favourite Hoon",       cat:"Movie Dialogues" },
+    { q:"Yeh Baburao Ka Style Hai",       cat:"Filmy Dialogue" },
+    { q:"Joh Jeeta Wohi Sikandar",        cat:"Filmy Dialogue" },
+    { q:"Jahapanha Tussi Great Ho",       cat:"Filmy Dialogue" },
+    { q:"Jethalal Champaklal Gada",       cat:"Famous TV Character Name" },
+    { q:"Tulsi Mihir Virani",             cat:"Famous TV Character Name" },
+    { q:"Shimla and Manali",              cat:"Tourist Places" },
+    { q:"Dalhousie and Dharmashala",      cat:"Tourist Places" },
+    { q:"Double Ka Meetha",               cat:"Khana Peena" },
+    { q:"Daal Bati Churma",               cat:"Khana Peena" },
+    { q:"Vegetable Hakka Noodles",        cat:"Khana Peena" },
+    { q:"Litti Chokha",                   cat:"Khana Peena" },
+    { q:"Popeye the Sailor",              cat:"Cartoon Shows" },
+    { q:"Little Singham",                 cat:"Cartoon Shows" },
+    { q:"Teenage Mutant Ninja Turtles",   cat:"Cartoon Shows" },
+    { q:"Bahlool Khan Guda",              cat:"Hyderabad Place" },
+    { q:"Chappal Bazaar",                 cat:"Hyderabad Place" },
+    { q:"Kukatpally Housing Board",       cat:"Hyderabad Place" }
   ];
   const REVEAL_EVERY_MS = 3000;   // one random square fades away this often
 
@@ -570,7 +581,7 @@ function attachHostListeners(){
     renderHostGrid();
   });
   gref.child('status').on('value', s => {
-    if(s.val() === 'live'){ go('scr-hostgame'); $('themelbl').textContent = THEME; renderWall(); }
+    if(s.val() === 'live'){ go('scr-hostgame'); $('themelbl').textContent = WALL_TITLE; renderWall(); }
     if(s.val() === 'ended') go('scr-over');
   });
 }
@@ -720,7 +731,11 @@ function fanfare(){
 }
 /* ================= quiz: wall, puzzle, reveal ================= */
 const QCOL = ['#e53935','#8e24aa','#1e88e5','#00a86b','#f4511e',
-              '#3949ab','#00b8d4','#ff7043','#7cb342','#d81b60'];
+              '#3949ab','#00b8d4','#ff7043','#7cb342','#d81b60',
+              '#c62828','#6a1b9a','#0277bd','#00897b','#ef6c00',
+              '#283593','#0097a7','#f4511e','#558b2f','#ad1457'];
+const qText = i => (typeof QUESTIONS[i] === 'string' ? QUESTIONS[i] : (QUESTIONS[i].q || ''));
+const qCat  = i => (typeof QUESTIONS[i] === 'string' ? '' : (QUESTIONS[i].cat || ''));
 let qIndex = -1, played = {}, tiles = [], revealTimer = null, answerShown = false;
 let clockTimer = null, totalMs = 0, elapsedMs = 0, lastTs = 0;
 
@@ -771,8 +786,8 @@ function openQuestion(i){
   qIndex = i; answerShown = false;
   $('qwall').classList.add('hide'); $('qpuzzle').classList.remove('hide');
   $('pzno').textContent = 'Q' + (i+1);
-  $('pzhint').textContent = THEME;
-  buildBoard(QUESTIONS[i]);
+  $('pzhint').textContent = (qCat(i) || 'Guess the hidden line').toUpperCase();
+  buildBoard(qText(i));
   // countdown: total seconds = number of hidden letters x 3
   totalMs = tiles.filter(t=>!t.classList.contains('open')).length * REVEAL_EVERY_MS;
   elapsedMs = 0; lastTs = 0; drawBar();
